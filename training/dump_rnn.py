@@ -7,7 +7,10 @@ from keras.layers import Dense
 from keras.layers import LSTM
 from keras.layers import GRU
 from keras.models import load_model
+
+from keras.constraints import Constraint
 from keras import backend as K
+
 import sys
 import re
 import numpy as np
@@ -50,14 +53,36 @@ def printLayer(f, hf, layer):
         hf.write('extern const DenseLayer {};\n\n'.format(name));
 
 
-def foo(c, name):
-    return 1
-
 def mean_squared_sqrt_error(y_true, y_pred):
     return K.mean(K.square(K.sqrt(y_pred) - K.sqrt(y_true)), axis=-1)
 
+def my_crossentropy(y_true, y_pred):
+    return K.mean(2*K.abs(y_true-0.5) * K.binary_crossentropy(y_pred, y_true), axis=-1)
 
-model = load_model(sys.argv[1], custom_objects={'msse': mean_squared_sqrt_error, 'mean_squared_sqrt_error': mean_squared_sqrt_error, 'my_crossentropy': mean_squared_sqrt_error, 'mycost': mean_squared_sqrt_error, 'WeightClip': foo})
+def mymask(y_true):
+    return K.minimum(y_true+1., 1.)
+
+def msse(y_true, y_pred):
+    return K.mean(mymask(y_true) * K.square(K.sqrt(y_pred) - K.sqrt(y_true)), axis=-1)
+
+def mycost(y_true, y_pred):
+    return K.mean(mymask(y_true) * (10*K.square(K.square(K.sqrt(y_pred) - K.sqrt(y_true))) + K.square(K.sqrt(y_pred) - K.sqrt(y_true)) + 0.01*K.binary_crossentropy(y_pred, y_true)), axis=-1)
+
+def my_accuracy(y_true, y_pred):
+    return K.mean(2*K.abs(y_true-0.5) * K.equal(y_true, K.round(y_pred)), axis=-1)
+
+class WeightClip(Constraint):
+    def __init__(self, c=2, name='WeightClip'):
+        self.c = c
+
+    def __call__(self, p):
+        return K.clip(p, -self.c, self.c)
+
+    def get_config(self):
+        return {'name': self.__class__.__name__, 'c': self.c}
+
+
+model = load_model(sys.argv[1], custom_objects={'msse': msse, 'mean_squared_sqrt_error': mean_squared_sqrt_error, 'my_crossentropy': my_crossentropy, 'mycost': mycost, 'WeightClip': WeightClip})
 
 weights = model.get_weights()
 
@@ -86,3 +111,4 @@ hf.write('\n\n#endif\n')
 
 f.close()
 hf.close()
+

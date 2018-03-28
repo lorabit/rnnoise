@@ -1,6 +1,6 @@
-# ../wavutils/bin/wav2pcm noise.wav noise.pcm
+ ../wavutils/bin/wav2pcm noise.wav noise.pcm
 ../wavutils/bin/wav2pcm speech.wav speech.pcm
-#../src/denoise_training speech.pcm noise.pcm output.f32
+../src/denoise_training speech.pcm noise.pcm output.f32
 ../wavutils/bin/wav2pcm combine.wav combine.pcm &
 python2 ../training/bin2hdf5.py output.f32 5000000 87 denoise_data9.h5
 python2 ../training/rnn_train.py
